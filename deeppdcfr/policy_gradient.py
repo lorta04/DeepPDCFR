@@ -203,45 +203,6 @@ class PolicyGradientPolicies(policy.Policy):
         return prob_dict
 
 
-class A2C(PolicyGradient):
-    def __init__(
-        self,
-        num_episodes=int(1e6),
-        game_name="KuhnPoker",
-        num_hidden=64,
-        num_layers=1,
-        batch_size=16,
-        entropy_cost=0.001,
-        critic_learning_rate=0.01,
-        pi_learning_rate=0.01,
-        num_critic_before_pi=4,
-        logfreq=100,
-        logger=None,
-        play_against_random=False,
-        num_random_games=20000,
-        device="cpu",
-        seed=0,
-    ):
-        super().__init__(
-            num_episodes=num_episodes,
-            game_name=game_name,
-            loss_str="a2c",
-            num_hidden=num_hidden,
-            num_layers=num_layers,
-            batch_size=batch_size,
-            entropy_cost=entropy_cost,
-            critic_learning_rate=critic_learning_rate,
-            pi_learning_rate=pi_learning_rate,
-            num_critic_before_pi=num_critic_before_pi,
-            logfreq=logfreq,
-            logger=logger,
-            play_against_random=play_against_random,
-            num_random_games=num_random_games,
-            device=device,
-            seed=seed,
-        )
-
-
 class RPG(PolicyGradient):
     def __init__(
         self,
