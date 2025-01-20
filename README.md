@@ -13,7 +13,7 @@ bash scripts/install.sh
 
 Run the following script to assess the performance of model-free neural algorithms on testing games. The results are saved in the folder `logs`.
 ```bash
-conda activate PDCFRPlus
+conda activate DeepPDCFR
 python scripts/run.py with configs/{algo_name}.yaml game_name={game_name} seed={seed} --force
 ```
 `algo_name` is the algorithm name chosen from `NFSP, QPG, RPG, OSDeepCFR, DeepCumuAdv, DeepDCFRPlus, DeepPDCFRPlus`.
