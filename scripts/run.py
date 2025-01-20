@@ -16,28 +16,23 @@ def config():
     algo_name = "CFR"
     game_name = "KuhnPoker"
     log_folder = "logs"
-    group = "default"
 
     # logger
     writer_strings = ["stdout"]
-    search_hyper = False
     save_log = False
     if save_log:
-        folder = Path(__file__).parents[1] / log_folder / group / algo_name / game_name
+        folder = Path(__file__).parents[1] / log_folder / algo_name / game_name
         writer_strings += ["csv", "sacred", "tensorboard"]
         ex.observers.append(ServerFileStorageObserver(folder))
 
 
 @ex.automain
-def main(algo_name, search_hyper, _config, _run):
+def main(algo_name, _config, _run):
     configs = dict(_config)
     if configs["save_log"]:
         configs["folder"] = configs["folder"] / str(_run._id)
     logger = init_object(Logger, configs)
     solver_class = load_module("deeppdcfr:{}".format(algo_name))
 
-    if search_hyper:
-        run_method(solver_class.search_hyper, configs)
-    else:
-        solver = init_object(solver_class, configs, logger=logger)
-        solver.solve()
+    solver = init_object(solver_class, configs, logger=logger)
+    solver.solve()
