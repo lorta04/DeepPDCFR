@@ -352,11 +352,11 @@ class ReservoirBuffer:
         self.reset()
 
     def reset(self):
-        self.infostate_buf = np.zeros(
+        self.infostate_buf = np.ones(
             [self.buffer_size, self.infostate_size], dtype=float
         )
-        self.q_value_buf = np.zeros([self.buffer_size, self.action_size], dtype=float)
-        self.iteration_buf = np.zeros([self.buffer_size, 1], dtype=float)
+        self.q_value_buf = np.ones([self.buffer_size, self.action_size], dtype=float)
+        self.iteration_buf = np.ones([self.buffer_size, 1], dtype=float)
         self.cur_id = 0
 
     def add(self, infostate, q_value, iteration):

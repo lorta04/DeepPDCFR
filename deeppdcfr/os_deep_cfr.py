@@ -61,13 +61,13 @@ class OSDeepCFR(DeepCFR):
 
     def solve(self):
         self.episode = 0
-        root_state = self.game.new_initial_state()
         advantage_losses = {0: [], 1: []}
         self.evaluate()
         for self.num_iteration in range(1, self.num_iterations + 1):
             for p in range(self.num_players):
                 for _ in range(self.num_traversals):
                     self.episode += 1
+                    root_state = self.skip_chance_state(self.game.new_initial_state())
                     self.dfs(root_state, p)
                 if self.reinitialize_advantage_networks:
                     self.regret_trainers[p].reset()
@@ -118,17 +118,6 @@ class OSDeepCFR(DeepCFR):
         player = s.current_player()
         if player == -4:
             return s.returns()[traverser] / self.max_utility
-        if player == -1:
-            actions, probs = zip(*s.chance_outcomes())
-            aid = np.random.choice(range(len(actions)), p=probs)
-            action, prob = actions[aid], probs[aid]
-            return self.dfs(
-                s.child(action),
-                traverser,
-                my_reach,
-                opp_reach * prob,
-                sample_reach * prob,
-            )
         legal_actions = s.legal_actions()
         policy = self.regret_trainers[player].get_policy(s)
         num_actions = s.num_distinct_actions()
@@ -144,13 +133,13 @@ class OSDeepCFR(DeepCFR):
             sample_policy[action].item(),
             policy[action].item(),
         )
-
+        ns = self.skip_chance_state(s.child(action))
         if player == 1 - traverser:
             self.ave_policy_trainer.add_data(
                 s.information_state_tensor(player), policy, self.num_iteration
             )
             return self.dfs(
-                s.child(action),
+                ns,
                 traverser,
                 my_reach,
                 opp_reach * prob,
@@ -160,7 +149,7 @@ class OSDeepCFR(DeepCFR):
             q_values = np.zeros_like(policy)
             q_values[action] = (
                 self.dfs(
-                    s.child(action),
+                    ns,
                     traverser,
                     my_reach * prob,
                     opp_reach,
@@ -177,4 +166,10 @@ class OSDeepCFR(DeepCFR):
             )
             return value
 
-
+    def skip_chance_state(self, s):
+        while s.current_player() == -1:
+            self.nodes_touched += 1
+            actions, probs = zip(*s.chance_outcomes())
+            aid = np.random.choice(range(len(actions)), p=probs)
+            s.apply_action(actions[aid])
+        return s

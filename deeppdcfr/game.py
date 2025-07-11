@@ -295,24 +295,6 @@ class FHP(UniversalPoker):
         self.name = "FHP"
 
 
-class HULH(UniversalPoker):
-    def __init__(self):
-        super().__init__(
-            num_players=2,
-            betting="limit",
-            blind="50 100",
-            raise_size="100 100 200 200",
-            first_player="1 2 2 2",
-            max_raises="3 3 4 4",
-            num_rounds=4,
-            num_suits=4,
-            num_ranks=13,
-            num_hole_cards=2,
-            num_board_cards="0 3 1 1",
-            large_game=True,
-        )
-
-
 def get_game_configs() -> list[GameConfig]:
     game_configs = [
         KuhnPoker(),
@@ -323,7 +305,6 @@ def get_game_configs() -> list[GameConfig]:
         BattleShip(board_width=3, board_height=2, num_shots=3),
         BattleShip(board_width=2, board_height=2, num_shots=3),
         FHP(),        
-        HULH(),
     ]
     return game_configs
 
@@ -370,7 +351,6 @@ def print_game():
         "Battleship_22_3",
         "Battleship_32_3",
         # "FHP",
-        # "HULH",
     ]
     table = []
     for game_name in game_names:

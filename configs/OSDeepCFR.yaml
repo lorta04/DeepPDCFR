@@ -1,8 +1,9 @@
 game_name: KuhnPoker
 algo_name: OSDeepCFR
+
 # from "Multi-Agent Reinforcement Learning In OpenSpiel: A Reproduction Report"
 
-num_episodes: 12000000
+num_episodes: 10000000
 advantage_buffer_size: 1000000
 ave_policy_buffer_size: 1000000
 learning_rate: 1.0e-3
@@ -17,7 +18,6 @@ num_hiddens: 64
 linear_weighted: True
 evaluation_frequency: 3
 use_regret_matching_argmax: True
-epsilon: 0.6
-
 save_log: True
+epsilon: 0.6
 device: cpu

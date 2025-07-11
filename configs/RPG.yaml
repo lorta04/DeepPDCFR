@@ -1,8 +1,10 @@
 game_name: KuhnPoker
 algo_name: RPG
+save_log: True
+
 # from "Model-Free Online Learning in Unknown Sequential Decision Making Problems and Games"
 
-num_episodes: 12000000
+num_episodes: 10000000
 num_hidden: 64
 num_layers: 3
 batch_size: 128
@@ -11,6 +13,4 @@ critic_learning_rate: 0.01
 pi_learning_rate: 0.05
 num_critic_before_pi: 64
 logfreq: 90000
-
-save_log: True
 device: cpu

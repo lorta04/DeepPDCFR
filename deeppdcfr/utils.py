@@ -22,7 +22,13 @@ SpielGame = Union[pyspiel.Game, Any]
 
 from open_spiel.python.algorithms import exploitability
 from open_spiel.python.policy import tabular_policy_from_callable
-
+from deeppdcfr.poker_agent import (
+    CandidStatistician,
+    LooseAggressive,
+    LoosePassive,
+    TightPassive,
+    TightAggressive,
+)
 
 def rescale_func(callable_func):
     def rescaled_callable_func(state: SpielState) -> dict:
@@ -80,11 +86,11 @@ def play_n_poker_games_against_random(
     game: SpielGame, callable_func: Callable, num_random_games: int
 ) -> float:
     opponents = [
-        AlwaysCallOpponent(),
-        AlwaysBetOpponent(),
-        RandomOpponent(),
-        RandomCallBetOpponent(),
-        MaybeBetOpponent(),
+        CandidStatistician(),
+        LooseAggressive(),
+        LoosePassive(),
+        TightPassive(),
+        TightAggressive(),
     ]
     total_reward = 0
     for i in range(num_random_games // 2 // len(opponents)):
@@ -125,91 +131,6 @@ def play_poker_game_against_random(
                 state.apply_action(action)
             reward += state.returns()[player]
     return reward
-
-
-class AlwaysFoldOpponent:
-    def __call__(self, state: SpielState):
-        policy = {}
-        legal_actions = state.legal_actions()
-        for action in state.legal_actions():
-            policy[action] = 0
-        if 0 in legal_actions:
-            policy[0] = 1
-        else:
-            policy[1] = 1
-
-        assert sum(list(policy.values())) == 1
-        return policy
-
-
-class AlwaysCallOpponent:
-    def __call__(self, state: SpielState):
-        policy = {}
-        legal_actions = state.legal_actions()
-        for action in state.legal_actions():
-            policy[action] = 0
-        policy[1] = 1
-
-        assert sum(list(policy.values())) == 1
-        return policy
-
-
-class AlwaysBetOpponent:
-    def __call__(self, state: SpielState):
-        policy = {}
-        legal_actions = state.legal_actions()
-        for action in state.legal_actions():
-            policy[action] = 0
-        if 2 in legal_actions:
-            policy[2] = 1
-        else:
-            policy[1] = 1
-
-        assert sum(list(policy.values())) == 1
-        return policy
-
-
-class RandomOpponent:
-    def __call__(self, state: SpielState):
-        policy = {}
-        legal_actions = state.legal_actions()
-        for action in state.legal_actions():
-            policy[action] = 1 / len(legal_actions)
-
-        assert sum(list(policy.values())) == 1
-        return policy
-
-
-class RandomCallBetOpponent:
-    def __call__(self, state: SpielState):
-        policy = {}
-        legal_actions = state.legal_actions()
-        for action in state.legal_actions():
-            policy[action] = 0
-        if 2 in legal_actions:
-            policy[1] = 0.5
-            policy[2] = 0.5
-        else:
-            policy[1] = 1
-
-        assert sum(list(policy.values())) == 1
-        return policy
-
-
-class MaybeBetOpponent:
-    def __call__(self, state: SpielState):
-        policy = {}
-        legal_actions = state.legal_actions()
-        for action in state.legal_actions():
-            policy[action] = 0
-        if 2 in legal_actions:
-            policy[1] = 0.7
-            policy[2] = 0.3
-        else:
-            policy[1] = 1
-
-        assert sum(list(policy.values())) == 1
-        return policy
 
 
 def load_module(name):
