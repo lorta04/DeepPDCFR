@@ -8,3 +8,5 @@ conda activate DeepPDCFR
 
 pip install -e .
 
+cd matrix && unzip data.zip && cd ..
+
