@@ -1,5 +1,6 @@
 import math
 import random
+from pathlib import Path
 
 import numpy as np
 
@@ -50,6 +51,8 @@ class DeepCumuAdv:
         num_random_games=20000,
         device="cpu",
         seed=0,
+        save_iteration_checkpoints=True,
+        checkpoint_every=1,
     ):
         self.game_name = game_name
         self.play_against_random = play_against_random
@@ -85,6 +88,10 @@ class DeepCumuAdv:
         self.num_iteration = 0
         self.nodes_touched = 0
         self.episode = 0
+        self.last_exp = None
+        self.last_reward = None
+        self.save_iteration_checkpoints = save_iteration_checkpoints
+        self.checkpoint_every = checkpoint_every
         set_seed(seed)
         self.init_ave_policy_trainer()
         self.init_regret_trainers()
@@ -164,6 +171,7 @@ class DeepCumuAdv:
         ):
             self.train_average_policy()
             self.evaluate()
+        self.save_iteration_checkpoint()
 
     def collect_training_data(self, player):
         self.regret_trainers[player].reset_buffer()
@@ -206,13 +214,48 @@ class DeepCumuAdv:
                     self.num_random_games,
                 )
             self.logger.record("reward", reward)
+            self.last_reward = reward
             self.logger.dump(step=self.episode)
         else:
             exp = evalute_explotability(
                 self.game, self.ave_policy_trainer.action_probabilities
             )
             self.logger.record("exp", exp)
+            self.last_exp = exp
             self.logger.dump(step=self.episode)
+
+    def save_iteration_checkpoint(self):
+        if not self.save_iteration_checkpoints:
+            return
+        if self.num_iteration % self.checkpoint_every != 0:
+            return
+        if not getattr(self.logger, "folder", None):
+            return
+
+        checkpoint_dir = Path(self.logger.folder) / "checkpoints"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        checkpoint = {
+            "algo_name": self.__class__.__name__,
+            "game_name": self.game_name,
+            "iteration": self.num_iteration,
+            "episode": self.episode,
+            "nodes_touched": self.nodes_touched,
+            "exp": self.last_exp,
+            "reward": self.last_reward,
+            "average_policy_state_dict": self.ave_policy_trainer.model.state_dict(),
+            "regret_state_dicts": [trainer.model.state_dict() for trainer in self.regret_trainers],
+        }
+        if self.use_baseline:
+            checkpoint["baseline_state_dict"] = self.q_value_trainer.model.state_dict()
+        if any(hasattr(trainer, "imm_model") for trainer in self.regret_trainers):
+            checkpoint["imm_regret_state_dicts"] = [
+                trainer.imm_model.state_dict() if hasattr(trainer, "imm_model") else None
+                for trainer in self.regret_trainers
+            ]
+
+        checkpoint_file = checkpoint_dir / f"iter_{self.num_iteration:06d}.pt"
+        torch.save(checkpoint, checkpoint_file)
 
     def dfs(
         self,
