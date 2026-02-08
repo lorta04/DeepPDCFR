@@ -22,13 +22,6 @@ SpielGame = Union[pyspiel.Game, Any]
 
 from open_spiel.python.algorithms import exploitability
 from open_spiel.python.policy import tabular_policy_from_callable
-from deeppdcfr.poker_agent import (
-    CandidStatistician,
-    LooseAggressive,
-    LoosePassive,
-    TightPassive,
-    TightAggressive,
-)
 
 def rescale_func(callable_func):
     def rescaled_callable_func(state: SpielState) -> dict:
@@ -85,6 +78,20 @@ def play_game_against_random(game: SpielGame, callable_func: Callable) -> float:
 def play_n_poker_games_against_random(
     game: SpielGame, callable_func: Callable, num_random_games: int
 ) -> float:
+    try:
+        from deeppdcfr.poker_agent import (
+            CandidStatistician,
+            LooseAggressive,
+            LoosePassive,
+            TightPassive,
+            TightAggressive,
+        )
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            "Poker lookup matrices are missing in the matrix/ directory. "
+            "They are only required for poker random-opponent evaluation."
+        ) from exc
+
     opponents = [
         CandidStatistician(),
         LooseAggressive(),
