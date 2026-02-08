@@ -99,6 +99,16 @@ class DeepCumuAdv:
         if self.use_baseline:
             self.init_q_value_trainer()
 
+    def _spacer(self):
+        print("")
+
+    def _phase(self, text):
+        self._spacer()
+        sep = "=" * 32
+        self.logger.info(sep)
+        self.logger.info(text)
+        self.logger.info(sep)
+
     def init_ave_policy_trainer(self):
         self.ave_policy_trainer = AvePolicyTrainer(
             self.infostate_size,
@@ -153,12 +163,26 @@ class DeepCumuAdv:
         )
 
     def solve(self):
+        self._phase(
+            "[run] {} | {} | iters={} | trav/player={} | baseline={}".format(
+                self.__class__.__name__,
+                self.game_name,
+                self.num_iterations,
+                self.num_traversals,
+                self.use_baseline,
+            )
+        )
         self.evaluate()
         for _ in range(self.num_iterations):
             self.iteration()
 
     def iteration(self):
         self.num_iteration += 1
+        self._phase(
+            "[it {}] start | ep={} | nodes={}".format(
+                self.num_iteration, self.episode, self.nodes_touched
+            )
+        )
         for player in range(self.num_players):
             self.collect_training_data(player)
             self.train_regret(player)
@@ -172,31 +196,82 @@ class DeepCumuAdv:
             self.train_average_policy()
             self.evaluate()
         self.save_iteration_checkpoint()
+        self._phase(
+            "[it {}] done | ep={} | nodes={}".format(
+                self.num_iteration, self.episode, self.nodes_touched
+            )
+        )
 
     def collect_training_data(self, player):
+        nodes_before = self.nodes_touched
+        episodes_before = self.episode
+        self._phase(
+            "[it {}][p{}] traverse start | n={}".format(
+                self.num_iteration, player, self.num_traversals
+            )
+        )
         self.regret_trainers[player].reset_buffer()
-        for _ in range(self.num_traversals):
+        progress_interval = max(1, self.num_traversals // 4)
+        for traversal_id in range(1, self.num_traversals + 1):
             self.episode += 1
             root_state = self.skip_chance_state(self.game.new_initial_state())
             self.dfs(root_state, player)
+            if traversal_id % progress_interval == 0 or traversal_id == self.num_traversals:
+                self.logger.info(
+                    "[it {}][p{}] traverse {}/{}".format(
+                        self.num_iteration, player, traversal_id, self.num_traversals
+                    )
+                )
+        self.logger.info(
+            "[it {}][p{}] traverse done | +ep={} | +nodes={}".format(
+                self.num_iteration,
+                player,
+                self.episode - episodes_before,
+                self.nodes_touched - nodes_before,
+            )
+        )
 
     def train_regret(self, player):
+        self._phase("[it {}][p{}] regret train start".format(self.num_iteration, player))
         if self.reinitialize_advantage_networks:
             self.regret_trainers[player].reset()
         regret_loss = self.regret_trainers[player].train_model(self.num_iteration)
         self.logger.record("regret_loss_{}".format(player), regret_loss)
+        self.logger.info(
+            "[it {}][p{}] regret train done | loss={:.6f}".format(
+                self.num_iteration, player, regret_loss
+            )
+        )
 
     def train_baseline(self, player):
+        self._phase("[it {}][p{}] baseline train start".format(self.num_iteration, player))
         baseline_loss = self.q_value_trainer.train_model(self.num_iteration)
         if baseline_loss is not None:
             self.logger.record("baseline_loss_{}".format(player), baseline_loss)
+            self.logger.info(
+                "[it {}][p{}] baseline train done | loss={:.6f}".format(
+                    self.num_iteration, player, baseline_loss
+                )
+            )
+        else:
+            self.logger.info(
+                "[it {}][p{}] baseline skipped (small buffer)".format(
+                    self.num_iteration, player
+                )
+            )
 
     def train_average_policy(self):
+        self._phase("[it {}] policy train start".format(self.num_iteration))
         self.ave_policy_trainer.reset()
         ave_policy_loss = self.ave_policy_trainer.train_model(self.num_iteration)
-        self.logger.info("average policy loss: {}".format(ave_policy_loss))
+        self.logger.info(
+            "[it {}] policy train done | loss={:.6f}".format(
+                self.num_iteration, ave_policy_loss
+            )
+        )
 
     def evaluate(self):
+        self._phase("[it {}] eval start | ep={}".format(self.num_iteration, self.episode))
         self.logger.record("nodes_touched", self.nodes_touched)
         self.logger.record("iteration", self.num_iteration)
         self.logger.record("episode", self.episode)
@@ -216,6 +291,11 @@ class DeepCumuAdv:
             self.logger.record("reward", reward)
             self.last_reward = reward
             self.logger.dump(step=self.episode)
+            self.logger.info(
+                "[it {}] eval done | reward={:.6f}".format(
+                    self.num_iteration, reward
+                )
+            )
         else:
             exp = evalute_explotability(
                 self.game, self.ave_policy_trainer.action_probabilities
@@ -223,6 +303,11 @@ class DeepCumuAdv:
             self.logger.record("exp", exp)
             self.last_exp = exp
             self.logger.dump(step=self.episode)
+            self.logger.info(
+                "[it {}] eval done | exp={:.6f}".format(
+                    self.num_iteration, exp
+                )
+            )
 
     def save_iteration_checkpoint(self):
         if not self.save_iteration_checkpoints:
@@ -476,9 +561,9 @@ class RegretTrainer(Trainer):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            if train_step % 100 == 0:
+            if train_step % 250 == 0:
                 self.logger.info(
-                    "[{}/{}] regret loss: {}".format(
+                    "[reg][{}/{}] {}".format(
                         train_step, self.train_steps, loss.item()
                     )
                 )
@@ -571,9 +656,9 @@ class AvePolicyTrainer(Trainer):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            if train_step % 100 == 0:
+            if train_step % 1250 == 0:
                 self.logger.info(
-                    "[{}/{}] policy loss: {}".format(
+                    "[pol][{}/{}] {}".format(
                         train_step, self.train_steps, loss.item()
                     )
                 )
@@ -605,7 +690,6 @@ class ReservoirBuffer:
 
     def reset(self):
         if hasattr(self, "cur_id"):
-            print(self.cur_id)
             self.cur_id = 0
             return
 
@@ -895,9 +979,9 @@ class QValueTrainer(Trainer):
                 best_loss = loss.item()
                 self.best_model.load_state_dict(self.model.state_dict())
 
-            if train_step % 100 == 0:
-                print(
-                    "train_step[{}/{}]: loss {}, best_loss {}".format(
+            if train_step % 250 == 0:
+                self.logger.info(
+                    "[base][{}/{}] {} | best {}".format(
                         train_step, self.train_steps, loss.item(), best_loss
                     )
                 )

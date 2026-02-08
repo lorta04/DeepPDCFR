@@ -296,30 +296,28 @@ class VRPDCFRPlusRegretTrainer(RegretTrainer):
     def train_model(self, T):
         for train_step in range(self.train_steps):
             samples = self.buffer.sample(self.batch_size)
-            loss = self.compute_loss(samples, T)
+            reg_loss = self.compute_loss(samples, T)
             self.optimizer.zero_grad()
-            loss.backward()
+            reg_loss.backward()
             self.optimizer.step()
-            if train_step % 100 == 0:
-                self.logger.info(
-                    "[{}/{}] regret loss: {}".format(
-                        train_step, self.train_steps, loss.item()
-                    )
-                )
 
-            loss = self.compute_imm_loss(samples, T)
+            imm_loss = self.compute_imm_loss(samples, T)
             self.imm_optimizer.zero_grad()
-            loss.backward()
+            imm_loss.backward()
             self.imm_optimizer.step()
-            if train_step % 100 == 0:
+
+            if train_step % 250 == 0:
                 self.logger.info(
-                    "[{}/{}] imm regret loss: {}".format(
-                        train_step, self.train_steps, loss.item()
+                    "[reg+imm][{}/{}] reg={} | imm={}".format(
+                        train_step,
+                        self.train_steps,
+                        reg_loss.item(),
+                        imm_loss.item(),
                     )
                 )
 
         self.target_model.load_state_dict(self.model.state_dict())
-        return loss.item()
+        return imm_loss.item()
 
     def compute_loss(self, samples, T):
         infostates, cf_regrets, legal_actions_mask, iterations = samples
@@ -471,14 +469,12 @@ class VRPDCFRPlusQValueTrainer(QValueTrainer):
                 best_loss = loss.item()
                 self.best_model.load_state_dict(self.model.state_dict())
 
-            if train_step % 100 == 0:
-                print(
-                    "train_step[{}/{}]: loss {}, best_loss {}".format(
+            if train_step % 250 == 0:
+                self.logger.info(
+                    "[base][{}/{}] {} | best {}".format(
                         train_step, self.train_steps, loss.item(), best_loss
                     )
                 )
 
         self.model.load_state_dict(self.best_model.state_dict())
         return best_loss
-
-
